@@ -1,0 +1,20 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 11.00
+# Visual Studio 2010
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HoldemFeatures", "HoldemFeatures\HoldemFeatures.csproj", "{843478B5-B2E3-4822-BB4B-2F5CC0BE769D}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|x86 = Debug|x86
+		Release|x86 = Release|x86
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{843478B5-B2E3-4822-BB4B-2F5CC0BE769D}.Debug|x86.ActiveCfg = Debug|x86
+		{843478B5-B2E3-4822-BB4B-2F5CC0BE769D}.Debug|x86.Build.0 = Debug|x86
+		{843478B5-B2E3-4822-BB4B-2F5CC0BE769D}.Release|x86.ActiveCfg = Release|x86
+		{843478B5-B2E3-4822-BB4B-2F5CC0BE769D}.Release|x86.Build.0 = Release|x86
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

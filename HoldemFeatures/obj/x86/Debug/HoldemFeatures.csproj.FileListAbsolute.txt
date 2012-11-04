@@ -1,0 +1,10 @@
+c:\local_apps\HoldemFeatures\HoldemFeatures\obj\x86\Debug\ResolveAssemblyReference.cache
+c:\local_apps\HoldemFeatures\HoldemFeatures\bin\Debug\HoldemFeatures.exe
+c:\local_apps\HoldemFeatures\HoldemFeatures\bin\Debug\HoldemFeatures.pdb
+c:\local_apps\HoldemFeatures\HoldemFeatures\bin\Debug\HandEvaluator.dll
+c:\local_apps\HoldemFeatures\HoldemFeatures\bin\Debug\HandHistory.dll
+c:\local_apps\HoldemFeatures\HoldemFeatures\bin\Debug\HandEvaluator.pdb
+c:\local_apps\HoldemFeatures\HoldemFeatures\bin\Debug\HandEvaluator.xml
+c:\local_apps\HoldemFeatures\HoldemFeatures\bin\Debug\HandHistory.pdb
+c:\local_apps\HoldemFeatures\HoldemFeatures\obj\x86\Debug\HoldemFeatures.exe
+c:\local_apps\HoldemFeatures\HoldemFeatures\obj\x86\Debug\HoldemFeatures.pdb
