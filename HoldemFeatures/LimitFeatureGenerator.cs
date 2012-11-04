@@ -11,11 +11,7 @@ namespace HoldemFeatures
 {
     public class LimitFeatureGenerator : IFeatureGenerator
     {
-        private class SeatInfo
-        {
-            public int Index { get; set; }
-            public int BetLevel { get; set; }
-        }
+        public bool SkipMissingFeatures { get; set; }
 
         public LimitFeatureGenerator()
         {
@@ -42,9 +38,12 @@ namespace HoldemFeatures
                 string name = attr.Name;
                 
                 // Get the feature only if it's applicable to this situation.
-                string feature = "";
+                string feature = "?";
                 if(rIdx >= (int)attr.MinRound && rIdx <= (int)attr.MaxRound)
                     feature = method.Invoke(this, new object[] { hand, rIdx, aIdx }).ToString();
+
+                if (SkipMissingFeatures && feature == "?")
+                    continue;
 
                 // Add it to the list of features for this hand.
                 results.Add(new Tuple<string, string>(name, feature));
@@ -117,11 +116,11 @@ namespace HoldemFeatures
             
             // If there has been no raises or bets, no one is the aggressor so we don't use this feature
             if (action == null)
-                return "";
+                return "None";
 
             // If we are the aggressor, return 0
             if (action.Player == hand.Hero)
-                return "0";
+                return "Me";
 
             var aggressor = hand.Players.First(p => p.Name == action.Player);
             var relPlayers = hand.ButtonRelativeSeats();
@@ -130,7 +129,7 @@ namespace HoldemFeatures
 
             // If the aggressor is after us, return 1.
             // If the aggressor is before us, return -1.
-            return aggIdx > heroIdx ? "1" : "-1";
+            return aggIdx > heroIdx ? "After" : "Before";
         }
 
         [Feature("Win Probability")]
@@ -243,6 +242,12 @@ namespace HoldemFeatures
             }
 
             return hand.Players.Length - folds - 1;
+        }
+
+        [Feature("Table Size")]
+        public int TableSize(PokerHand hand, int rIdx, int aIdx)
+        {
+            return hand.Players.Length;
         }
 
         [Feature("Relative Post-Flop Position")]

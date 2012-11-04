@@ -11,14 +11,27 @@ namespace HoldemFeatures
     class Program
     {
         static string DELIMITER = ",";
-        static IFeatureGenerator featureGen = new LimitFeatureGenerator();
-        
+        static LimitFeatureGenerator featureGen = new LimitFeatureGenerator();
+        static Rounds ROUND_FILTER = Rounds.NONE;
+
         static void Main(string[] args)
         {
             #region Validate parameters
             if (args.Length < 2)
             {
                 Console.WriteLine("Format: HoldemFeatures.exe <input> <output> [-option1 ...]");
+                Console.WriteLine("Options:");
+
+                // Delimiter
+                Console.WriteLine("[d, delim, delimiter] <arg1>".PadRight(30) + "Sets the delimiter character for the output file.");
+                Console.WriteLine("".PadRight(30) + "Setting arg1 to tab or \t will set the delimiter as tabs.");
+                Console.WriteLine("".PadRight(30) + "Default: ,");
+
+                // Round
+                Console.WriteLine("[r, round] <arg1>".PadRight(30) + "Filters the actions to only those in the given round.");
+                Console.WriteLine("".PadRight(30) + "Options: preflop, flop, turn, river, none");
+                Console.WriteLine("".PadRight(30) + "Default: none (all rounds)");
+
                 return;
             }
 
@@ -27,7 +40,7 @@ namespace HoldemFeatures
                 if (args[i][0] != '-')
                     continue;
 
-                string flag = args[i].Substring(1);
+                string flag = args[i].Substring(1).ToLower();
                 switch (flag)
                 {
                     case "delim":
@@ -36,6 +49,10 @@ namespace HoldemFeatures
                         string delim = DELIMITER.ToLower();
                         if (delim == "tab" || delim == "tabs" || delim == "\\t")
                             DELIMITER = "\t";
+                        break;
+                    case "round":
+                    case "r": ROUND_FILTER = (Rounds)Enum.Parse(typeof(Rounds), args[++i], true);
+                        featureGen.SkipMissingFeatures = true;
                         break;
                     default:
                         Console.WriteLine("Unknown flag: {0}", flag);
@@ -75,8 +92,13 @@ namespace HoldemFeatures
                 
                 for (int rIdx = 0; rIdx < hand.Rounds.Length; rIdx++)
                 {
+                    // Optionally filter out rounds
+                    if (ROUND_FILTER != Rounds.NONE && ROUND_FILTER != (Rounds)rIdx)
+                        continue;
+
                     if (hand.Rounds[rIdx].Actions == null)
                         continue;
+
                     for (int aIdx = 0; aIdx < hand.Rounds[rIdx].Actions.Length; aIdx++)
                         if (hand.Rounds[rIdx].Actions[aIdx].Player == hand.Hero)
                             features.Add(featureGen.GenerateFeatures(hand, rIdx, aIdx));

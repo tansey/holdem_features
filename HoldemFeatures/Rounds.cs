@@ -10,6 +10,7 @@ namespace HoldemFeatures
         PREFLOP = 0,
         FLOP = 1,
         TURN = 2,
-        RIVER = 3
+        RIVER = 3,
+        NONE = 4
     }
 }
