@@ -83,7 +83,7 @@ namespace HoldemFeatures
                 }
             }
             Console.WriteLine("done.");
-            Console.WriteLine("Generated features for {0} decision{1}", features.Count, features.Count == 1 ? "" : "s");
+            Console.WriteLine("Generated {0} features for {1} decision{2}", features.First().Count(), features.Count, features.Count == 1 ? "" : "s");
             #endregion
 
             #region Write the results to a delimited file

@@ -238,6 +238,25 @@ namespace HoldemFeatures
             return max;
         }
 
+        /// <summary>
+        /// Returns the list element minimizing the given selector function.
+        /// </summary>
+        public static T ArgMin<T>(this IEnumerable<T> list, Func<T, double> selector)
+        {
+            double minVal = double.MinValue;
+            T min = list.FirstOrDefault();
+            foreach (var t in list)
+            {
+                double d = selector(t);
+                if (d < minVal)
+                {
+                    minVal = d;
+                    min = t;
+                }
+            }
+            return min;
+        }
+
         public static int IndexOf<T>(this IEnumerable<T> list, Func<T, bool> selector)
         {
             for (int i = 0; i < list.Count(); i++)

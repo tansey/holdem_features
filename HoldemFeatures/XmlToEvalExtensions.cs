@@ -62,6 +62,19 @@ namespace HoldemFeatures
             return result;
         }
 
+        public static PokerHandHistory.Card[] Board(this PokerHand hand, Rounds round)
+        {
+            switch (round)
+            {
+                case Rounds.PREFLOP: return new PokerHandHistory.Card[0];
+                case Rounds.FLOP: return new PokerHandHistory.Card[] { hand.Flop.CommunityCards[0], hand.Flop.CommunityCards[1], hand.Flop.CommunityCards[2] };
+                case Rounds.TURN: return new PokerHandHistory.Card[] { hand.Flop.CommunityCards[0], hand.Flop.CommunityCards[1], hand.Flop.CommunityCards[2], hand.Turn.CommunityCards[0] };
+                case Rounds.RIVER: return new PokerHandHistory.Card[] { hand.Flop.CommunityCards[0], hand.Flop.CommunityCards[1], hand.Flop.CommunityCards[2], hand.Turn.CommunityCards[0], hand.River.CommunityCards[0] };
+                default: throw new Exception("Unknown round: " + round.ToString());
+            }
+
+        }
+
         #endregion
 
         /// <summary>
@@ -71,7 +84,7 @@ namespace HoldemFeatures
         /// <param name="rIdx">The index of the current round.</param>
         /// <param name="aIdx">The index of the current action. This action will not be included in the returned list.</param>
         /// <returns>A list of all previous actions.</returns>
-        public static IEnumerable<PokerHandHistory.Action> PreviousActions(this PokerHand hand, int rIdx, int aIdx)
+        public static IEnumerable<PokerHandHistory.Action> AllPreviousActions(this PokerHand hand, int rIdx, int aIdx)
         {
             List<PokerHandHistory.Action> actions = new List<PokerHandHistory.Action>();
 
@@ -86,6 +99,7 @@ namespace HoldemFeatures
             return actions;
         }
 
+
         /// <summary>
         /// Tells whether a given player has folded at this point in the game.
         /// </summary>
@@ -96,7 +110,7 @@ namespace HoldemFeatures
         /// <returns>True if the player has folded.</returns>
         public static bool Folded(this PokerHand hand, int rIdx, int aIdx, string playerName)
         {
-            return hand.PreviousActions(rIdx, aIdx).FirstOrDefault(a => a.Type == ActionType.Fold && a.Player == playerName) != null;
+            return hand.AllPreviousActions(rIdx, aIdx).FirstOrDefault(a => a.Type == ActionType.Fold && a.Player == playerName) != null;
         }
 
         /// <summary>
@@ -109,7 +123,7 @@ namespace HoldemFeatures
         /// <returns>True if the player has gone all-in.</returns>
         public static bool AllIn(this PokerHand hand, int rIdx, int aIdx, string playerName)
         {
-            return hand.PreviousActions(rIdx, aIdx).FirstOrDefault(a => a.AllIn && a.Player == playerName) != null;
+            return hand.AllPreviousActions(rIdx, aIdx).FirstOrDefault(a => a.AllIn && a.Player == playerName) != null;
         }
 
         /// <summary>
@@ -136,6 +150,39 @@ namespace HoldemFeatures
         public static bool AllIn(this IEnumerable<PokerHandHistory.Action> actions, string playerName)
         {
             return actions.FirstOrDefault(a => a.AllIn && a.Player == playerName) != null;
+        }
+
+        public static int HeroSeat(this PokerHand hand)
+        {
+            return hand.Players.First(p => p.Name == hand.Hero).Seat;
+        }
+
+        public static decimal HeroStack(this PokerHand hand)
+        {
+            return hand.Players.First(p => p.Name == hand.Hero).Stack;
+        }
+
+        /// <summary>
+        /// Creates a list of the hand's players ordered by their seat relative to the button.
+        /// 0 = immediately after the button
+        /// N = button, where N is the number of players
+        /// </summary>
+        public static IEnumerable<Player> ButtonRelativeSeats(this PokerHand hand)
+        {
+            Player[] players = new Player[hand.Players.Length];
+            int maxSeat = hand.Players.Max(p => p.Seat);
+            int minSeat = hand.Players.Min(p => p.Seat);
+            for (int i = hand.Context.Button == maxSeat ? minSeat : hand.Context.Button + 1, relIdx = 0; relIdx < players.Length;)
+            {
+                var player = hand.Players.FirstOrDefault(p => p.Seat == i);
+                if (player != null)
+                    players[relIdx++] = player;
+
+                i++;
+                if (i > maxSeat)
+                    i = minSeat;
+            }
+            return players;
         }
     }
 }
