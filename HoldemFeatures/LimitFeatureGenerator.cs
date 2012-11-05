@@ -48,6 +48,8 @@ namespace HoldemFeatures
                 // Add it to the list of features for this hand.
                 results.Add(new Tuple<string, string>(name, feature));
             }
+
+            results.Add(new Tuple<string, string>("Action", hand.Rounds[rIdx].Actions[aIdx].Type.ToString()));
             return results.ToArray();
         }
         
@@ -262,7 +264,7 @@ namespace HoldemFeatures
                 firstBlind = hand.Blinds.FirstOrDefault(b => b.Type == BlindType.BigBlind);
             
             Debug.Assert(firstBlind != null);
-            
+
             int firstSeat = hand.Players.First(p => p.Name == firstBlind.Player).Seat;
             int heroIdx = hand.HeroSeat();
             
@@ -345,7 +347,7 @@ namespace HoldemFeatures
                             case 0: return Position.Early;
                             case 1: return Position.Middle;
                             case 2: return Position.Late;
-                            default: throw new Exception("Impossible players before");
+                            default: throw new Exception(string.Format("Impossible players before. Players: {0} Before: {1}", hand.Players.Length, playersBefore));
                         }
                     }
                 case 7:
@@ -356,7 +358,7 @@ namespace HoldemFeatures
                             case 1: return Position.Early;
                             case 2: return Position.Middle;
                             case 3: return Position.Late;
-                            default: throw new Exception("Impossible players before");
+                            default: throw new Exception(string.Format("Impossible players before. Players: {0} Before: {1}", hand.Players.Length, playersBefore));
                         }
                     }
                 case 8:
@@ -368,7 +370,7 @@ namespace HoldemFeatures
                             case 2:
                             case 3: return Position.Middle;
                             case 4: return Position.Late;
-                            default: throw new Exception("Impossible players before");
+                            default: throw new Exception(string.Format("Impossible players before. Players: {0} Before: {1}", hand.Players.Length, playersBefore));
                         }
                     }
                 case 9:
@@ -381,7 +383,7 @@ namespace HoldemFeatures
                             case 3:
                             case 4: return Position.Middle;
                             case 5: return Position.Late;
-                            default: throw new Exception("Impossible players before");
+                            default: throw new Exception(string.Format("Impossible players before. Players: {0} Before: {1}", hand.Players.Length, playersBefore));
                         }
                     }
                 case 10:
@@ -395,7 +397,7 @@ namespace HoldemFeatures
                             case 4: return Position.Middle;
                             case 5:
                             case 6: return Position.Late;
-                            default: throw new Exception("Impossible players before");
+                            default: throw new Exception(string.Format("Impossible players before. Players: {0} Before: {1}", hand.Players.Length, playersBefore));
                         }
                     }
                 default: throw new Exception("Unsupported player count: " + hand.Players.Length);
