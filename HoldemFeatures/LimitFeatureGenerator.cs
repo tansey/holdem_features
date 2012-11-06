@@ -11,7 +11,11 @@ namespace HoldemFeatures
 {
     public class LimitFeatureGenerator : IFeatureGenerator
     {
+		// Map from string value of a feature to its index
+		Dictionary<string,Dictionary<string, int>> stringIndexes = new Dictionary<string, Dictionary<string, int>>();
+
         public bool SkipMissingFeatures { get; set; }
+		public bool ConvertFeaturesToNumeric { get; set; }
 
         public LimitFeatureGenerator()
         {
@@ -23,10 +27,10 @@ namespace HoldemFeatures
             // Check that we are using limit betting.
             Debug.Assert(hand.Context.BettingType == BettingType.FixedLimit);
 
-            var results = new List<Tuple<string,string>>();
+			var results = new List<Tuple<string,string>>();
             foreach (var method in typeof(LimitFeatureGenerator).GetMethods())
             {
-                // Get all the features of this class.
+				// Get all the features of this class.
                 var attributes = method.GetCustomAttributes(typeof(Feature), true);
                 if (attributes.Length == 0)
                     continue;
@@ -45,73 +49,129 @@ namespace HoldemFeatures
                 if (SkipMissingFeatures && feature == "?")
                     continue;
 
+				if(ConvertFeaturesToNumeric)
+				{
+					switch (attr.FType) {
+					case FeatureType.Continuous: 
+					case FeatureType.Discrete: break;
+					case FeatureType.Nominal: 
+						string oldFeature = feature;
+						feature = attr.NominalValues.IndexOf(s => s == feature).ToString();
+						if(feature == "-1")
+							throw new Exception(string.Format("Unknown nominal value {0} for feature {1}", oldFeature, method.Name));
+						break;
+					case FeatureType.Boolean:
+						if(feature == Boolean.FalseString)
+							feature = "0";
+						else
+							feature = "1";
+						break;
+					case FeatureType.Enum:
+						feature = ((int)Enum.Parse(attr.EnumType, feature)).ToString();
+						break;
+					case FeatureType.String:
+						Dictionary<string, int> indexes;
+						if(!stringIndexes.TryGetValue(attr.Name, out indexes))
+						{
+							indexes = new Dictionary<string, int>();
+							stringIndexes.Add(attr.Name, indexes);
+						}
+						int stringIdx;
+						if(!indexes.TryGetValue(feature, out stringIdx))
+						{
+							stringIdx = 1;
+							indexes.Add(feature, stringIdx);
+						}
+						feature = stringIdx.ToString();
+						break;
+					default: throw new Exception("Unspecified feature type for feature: " + method.Name);
+					}
+				}
+
                 // Add it to the list of features for this hand.
                 results.Add(new Tuple<string, string>(name, feature));
             }
 
-            results.Add(new Tuple<string, string>("Action", hand.Rounds[rIdx].Actions[aIdx].Type.ToString()));
+			string actionStr = hand.Rounds[rIdx].Actions[aIdx].Type.ToString();
+			if(ConvertFeaturesToNumeric)
+			{
+				switch (hand.Rounds[rIdx].Actions[aIdx].Type) {
+				case ActionType.Bet:
+				case ActionType.Raise: actionStr = "2";
+				break;
+				case ActionType.Call:
+				case ActionType.Check: actionStr = "1";
+				break;
+				case ActionType.Fold: actionStr = "0";
+				break;
+				default:
+					break;
+				}
+			}
+			else
+            	results.Add(new Tuple<string, string>("Action", actionStr));
             return results.ToArray();
         }
         
-        [Feature("Preflop Bet Level")]
+        [Feature("Preflop Bet Level", FeatureType.Discrete)]
         public int PreflopBetLevel(PokerHand hand, int rIdx, int aIdx)
         {
             var actions = hand.Preflop.Actions;
             return getBetLevel(actions, rIdx > (int)Rounds.PREFLOP ? actions.Length : aIdx);
         }
 
-        [Feature("Flop Bet Level", MinRound=Rounds.FLOP)]
+		[Feature("Flop Bet Level", FeatureType.Discrete, MinRound=Rounds.FLOP)]
         public int FlopBetLevel(PokerHand hand, int rIdx, int aIdx)
         {
             var actions = hand.Flop.Actions;
             return getBetLevel(actions, rIdx > (int)Rounds.FLOP ? actions.Length : aIdx);
         }
 
-        [Feature("Turn Bet Level", MinRound=Rounds.TURN)]
+		[Feature("Turn Bet Level", FeatureType.Discrete, MinRound=Rounds.TURN)]
         public int TurnBetLevel(PokerHand hand, int rIdx, int aIdx)
         {
             var actions = hand.Turn.Actions;
             return getBetLevel(actions, rIdx > (int)Rounds.TURN ? actions.Length : aIdx);
         }
 
-        [Feature("River Bet Level", MinRound=Rounds.RIVER)]
+		[Feature("River Bet Level", FeatureType.Discrete, MinRound=Rounds.RIVER)]
         public int RiverBetLevel(PokerHand hand, int rIdx, int aIdx)
         {
             var actions = hand.River.Actions;
             return getBetLevel(actions, rIdx > (int)Rounds.RIVER ? actions.Length : aIdx);
         }
 
-        [Feature("Current Round")]
+		[Feature("Current Round", FeatureType.Discrete)]
         public int CurrentRound(PokerHand hand, int rIdx, int aIdx)
         {
             return rIdx;
         }
 
-        [Feature("Aggressor Preflop", MinRound = Rounds.FLOP)]
+        [Feature("Aggressor Preflop", FeatureType.Boolean, MinRound = Rounds.FLOP)]
         public bool AggressorPreflop(PokerHand hand, int rIdx, int aIdx)
         {
             return getAggressor(hand.Preflop.Actions, hand.Hero);
         }
 
-        [Feature("Aggressor Flop", MinRound = Rounds.TURN)]
+		[Feature("Aggressor Flop", FeatureType.Boolean, MinRound = Rounds.TURN)]
         public bool AggressorFlop(PokerHand hand, int rIdx, int aIdx)
         {
             return getAggressor(hand.Flop.Actions, hand.Hero);
         }
 
-        [Feature("Aggressor Turn", MinRound = Rounds.RIVER)]
+		[Feature("Aggressor Turn", FeatureType.Boolean, MinRound = Rounds.RIVER)]
         public bool AggressorTurn(PokerHand hand, int rIdx, int aIdx)
         {
             return getAggressor(hand.Turn.Actions, hand.Hero);
         }
 
-        [Feature("Can Check", MinRound = Rounds.FLOP)]
+		[Feature("Can Check", FeatureType.Boolean, MinRound = Rounds.FLOP)]
         public bool CanCheck(PokerHand hand, int rIdx, int aIdx)
         {
             return hand.Rounds[rIdx].Actions.Take(aIdx).Count(a => a.Type == ActionType.Bet || a.Type == ActionType.Raise) == 0;
         }
 
-        [Feature("Relative Aggressor Position")]
+		[Feature("Relative Aggressor Position", FeatureType.Nominal, NominalValues=new string[] { "None", "Me", "Before", "After" })]
         public string AggressorPosition(PokerHand hand, int rIdx, int aIdx)
         {
             var action = hand.AllPreviousActions(rIdx, aIdx).LastOrDefault(a => a.Type == ActionType.Bet || a.Type == ActionType.Raise);
@@ -134,16 +194,16 @@ namespace HoldemFeatures
             return aggIdx > heroIdx ? "After" : "Before";
         }
 
-        [Feature("Win Probability")]
+        [Feature("Win Probability", FeatureType.Continuous)]
         public double WinProb(PokerHand hand, int rIdx, int aIdx)
         {
             ulong hc = hand.HeroHoleCards();
             ulong board = hand.BoardMask((Rounds)rIdx);
             int opponents = NumOpponents(hand, rIdx, aIdx);
-            return Hand.WinOdds(hc, board, 0UL, opponents, 0.01, 100);
+            return Hand.WinOdds(hc, board, 0UL, opponents, 1000);
         }
 
-        [Feature("Top Pair", MinRound = Rounds.FLOP)]
+        [Feature("Top Pair", FeatureType.Boolean, MinRound = Rounds.FLOP)]
         public bool TopPair(PokerHand hand, int rIdx, int aIdx)
         {
             if(Hand.EvaluateType(hand.HeroHoleCards() | hand.BoardMask((Rounds)rIdx)) != Hand.HandTypes.Pair)
@@ -154,19 +214,19 @@ namespace HoldemFeatures
             return top == hand.HoleCards[0].Rank || top == hand.HoleCards[1].Rank;            
         }
         
-        [Feature("Hand Type", MinRound=Rounds.FLOP)]
-        public Hand.HandTypes HandType(PokerHand hand, int rIdx, int aIdx)
+        [Feature("Hand Type", FeatureType.Discrete,  MinRound=Rounds.FLOP)]
+        public int HandType(PokerHand hand, int rIdx, int aIdx)
         {
-            return Hand.EvaluateType(hand.HeroHoleCards() | hand.BoardMask((Rounds)rIdx));
+            return (int)Hand.EvaluateType(hand.HeroHoleCards() | hand.BoardMask((Rounds)rIdx));
         }
 
-        [Feature("Board Hand", MinRound = Rounds.FLOP)]
-        public Hand.HandTypes BoardHand(PokerHand hand, int rIdx, int aIdx)
+        [Feature("Board Hand", FeatureType.Discrete, MinRound = Rounds.FLOP)]
+        public int BoardHand(PokerHand hand, int rIdx, int aIdx)
         {
-            return Hand.EvaluateType(hand.BoardMask((Rounds)rIdx));
+            return (int)Hand.EvaluateType(hand.BoardMask((Rounds)rIdx));
         }
 
-        [Feature("Dominant Board Suit", MinRound = Rounds.FLOP)]
+        [Feature("Dominant Board Suit", FeatureType.Discrete, MinRound = Rounds.FLOP)]
         public int DominantBoardSuit(PokerHand hand, int rIdx, int aIdx)
         {
             var board = hand.Board((Rounds)rIdx);
@@ -175,7 +235,7 @@ namespace HoldemFeatures
             return suits.First().Count();
         }
 
-        [Feature("Secondary Board Suit", MinRound = Rounds.FLOP)]
+        [Feature("Secondary Board Suit", FeatureType.Discrete, MinRound = Rounds.FLOP)]
         public int SecondaryBoardSuit(PokerHand hand, int rIdx, int aIdx)
         {
             var board = hand.Board((Rounds)rIdx);
@@ -187,7 +247,7 @@ namespace HoldemFeatures
             return secondary.Count();
         }
 
-        [Feature("Flush Draw Hit", MinRound = Rounds.TURN)]
+        [Feature("Flush Draw Hit", FeatureType.Boolean, MinRound = Rounds.TURN)]
         public bool FlushDrawHit(PokerHand hand, int rIdx, int aIdx)
         {
             var prev = hand.Board((Rounds)(rIdx-1));
@@ -202,7 +262,7 @@ namespace HoldemFeatures
             return suits.First().Count() == 3;
         }
 
-        [Feature("Straight Draw Hit", MinRound = Rounds.TURN)]
+        [Feature("Straight Draw Hit", FeatureType.Boolean, MinRound = Rounds.TURN)]
         public bool StraightDrawHit(PokerHand hand, int rIdx, int aIdx)
         {
             var prev = hand.Board((Rounds)(rIdx - 1)).ToMask();
@@ -221,7 +281,7 @@ namespace HoldemFeatures
             return false;
         }
 
-        [Feature("Four Card Straight Hit", MinRound = Rounds.TURN)]
+        [Feature("Four Card Straight Hit", FeatureType.Boolean, MinRound = Rounds.TURN)]
         public bool FourCardStraightHit(PokerHand hand, int rIdx, int aIdx)
         {
             var prev = hand.Board((Rounds)(rIdx - 1)).ToMask();
@@ -231,7 +291,7 @@ namespace HoldemFeatures
             return Hand.CountContiguous(hand.BoardMask((Rounds)rIdx)) == 4;
         }
 
-        [Feature("Active Opponents")]
+        [Feature("Active Opponents", FeatureType.Discrete)]
         public int NumOpponents(PokerHand hand, int rIdx, int aIdx)
         {
             int folds = 0;
@@ -246,13 +306,13 @@ namespace HoldemFeatures
             return hand.Players.Length - folds - 1;
         }
 
-        [Feature("Table Size")]
+        [Feature("Table Size", FeatureType.Discrete)]
         public int TableSize(PokerHand hand, int rIdx, int aIdx)
         {
             return hand.Players.Length;
         }
 
-        [Feature("Relative Post-Flop Position")]
+        [Feature("Relative Post-Flop Position", FeatureType.Continuous)]
         public double RelativePosition(PokerHand hand, int rIdx, int aIdx)
         {
             // Get the seat to wrap on
@@ -302,7 +362,7 @@ namespace HoldemFeatures
             return playersBefore / ((double)playersAfter + (double)playersBefore);
         }
 
-        [Feature("Preflop Position")]
+        [Feature("Preflop Position", FeatureType.Enum, EnumType=typeof(Position))]
         public Position AbsolutePosition(PokerHand hand, int rIdx, int aIdx)
         {
             // Check if hero is on one of the blinds.
@@ -405,98 +465,98 @@ namespace HoldemFeatures
 
         }
 
-        [Feature("Flush Draw", MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
+        [Feature("Flush Draw", FeatureType.Boolean, MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
         public bool FlushDraw(PokerHand hand, int rIdx, int aIdx)
         {
             return Hand.IsFlushDraw(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), 0UL);
         }
 
-        [Feature("Backdoor Flush Draw", MinRound = Rounds.FLOP, MaxRound = Rounds.FLOP)]
+		[Feature("Backdoor Flush Draw", FeatureType.Boolean, MinRound = Rounds.FLOP, MaxRound = Rounds.FLOP)]
         public bool BackdoorFlushDraw(PokerHand hand, int rIdx, int aIdx)
         {
             return Hand.IsBackdoorFlushDraw(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), 0UL);
         }
 
-        [Feature("Open-Ended Straight Draw", MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
+		[Feature("Open-Ended Straight Draw", FeatureType.Boolean, MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
         public bool OpenEndedStraightDraw(PokerHand hand, int rIdx, int aIdx)
         {
             return Hand.IsOpenEndedStraightDraw(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), 0UL);
         }
 
-        [Feature("Gutshot Straight Draw",  MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
+		[Feature("Gutshot Straight Draw", FeatureType.Boolean,  MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
         public bool GutshotStraightDraw(PokerHand hand, int rIdx, int aIdx)
         {
             return Hand.IsGutShotStraightDraw(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), 0UL);
         }
 
-        [Feature("Straight Draw Count", MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
+		[Feature("Straight Draw Count", FeatureType.Discrete, MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
         public int StraightDrawCount(PokerHand hand, int rIdx, int aIdx)
         {
             return Hand.StraightDrawCount(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), 0UL);
         }
 
-        [Feature("Flush Draw Count", MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
+		[Feature("Flush Draw Count", FeatureType.Discrete, MinRound = Rounds.FLOP, MaxRound = Rounds.TURN)]
         public int FlushDrawCount(PokerHand hand, int rIdx, int aIdx)
         {
             return Hand.FlushDrawCount(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), 0UL);
         }
         
-        [Feature("Holecards Suited")]
+		[Feature("Holecards Suited", FeatureType.Boolean)]
         public bool Suited(PokerHand hand, int rIdx, int aIdx)
         {
             return Hand.IsSuited(hand.HeroHoleCards());
         }
 
-        [Feature("Holecards Connected")]
+        [Feature("Holecards Connected", FeatureType.Boolean)]
         public bool Connectors(PokerHand hand, int rIdx, int aIdx)
         {
             return Hand.IsConnected(hand.HeroHoleCards());
         }
 
-        [Feature("Pocket Pair")]
+		[Feature("Pocket Pair", FeatureType.Boolean)]
         public bool PocketPair(PokerHand hand, int rIdx, int aIdx)
         {
             return hand.HoleCards[0].Rank == hand.HoleCards[1].Rank;
         }
 
-        [Feature("Holecard 1 Rank")]
+		[Feature("Holecard 1 Rank", FeatureType.Discrete)]
         public int Holecard1Rank(PokerHand hand, int rIdx, int aIdx)
         {
             return Math.Max((int)hand.HoleCards[0].Rank, (int)hand.HoleCards[1].Rank);
         }
 
-        [Feature("Holecard 2 Rank")]
+		[Feature("Holecard 2 Rank", FeatureType.Discrete)]
         public int Holecard2Rank(PokerHand hand, int rIdx, int aIdx)
         {
             return Math.Min((int)hand.HoleCards[0].Rank, (int)hand.HoleCards[1].Rank);
         }
 
-        [Feature("Sklansky Group")]
+		[Feature("Sklansky Group", FeatureType.Discrete)]
         public int SklanskyGroup(PokerHand hand, int rIdx, int aIdx)
         {
             return (int)PocketHands.GroupType(hand.HeroHoleCards());
         }
 
-        [Feature("Positive Potential")]
+		[Feature("Positive Potential", FeatureType.Continuous)]
         public double PositivePotential(PokerHand hand, int rIdx, int aIdx)
         {
             double ppot, npot;
-            Hand.HandPotential(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), out ppot, out npot, NumOpponents(hand, rIdx, aIdx), 0.01, 300);
+            Hand.HandPotential(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), out ppot, out npot, NumOpponents(hand, rIdx, aIdx), 1000);
             return ppot;
         }
 
-        [Feature("Negative Potential")]
+		[Feature("Negative Potential", FeatureType.Continuous)]
         public double NegativePotential(PokerHand hand, int rIdx, int aIdx)
         {
             double ppot, npot;
-            Hand.HandPotential(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), out ppot, out npot, NumOpponents(hand, rIdx, aIdx), 0.01, 300);
+            Hand.HandPotential(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), out ppot, out npot, NumOpponents(hand, rIdx, aIdx), 1000);
             return npot;
         }
 
-        [Feature("Hand Strength")]
+		[Feature("Hand Strength", FeatureType.Continuous)]
         public double HandStrength(PokerHand hand, int rIdx, int aIdx)
         {
-            return Hand.HandStrength(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), NumOpponents(hand, rIdx, aIdx), 0.01, 300);
+            return Hand.HandStrength(hand.HeroHoleCards(), hand.BoardMask((Rounds)rIdx), NumOpponents(hand, rIdx, aIdx), 1000);
         }
 
         // Determines if the hero was the last person to bet in a round

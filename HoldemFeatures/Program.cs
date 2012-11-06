@@ -32,6 +32,10 @@ namespace HoldemFeatures
                 Console.WriteLine("".PadRight(30) + "Options: preflop, flop, turn, river, none");
                 Console.WriteLine("".PadRight(30) + "Default: none (all rounds)");
 
+				// Convert features to numeric values
+				Console.WriteLine("[num, numeric]".PadRight(30) + "Automatically converts all features to numeric values.");
+				Console.WriteLine("Default: disabled.".PadLeft(30));
+
                 return;
             }
 
@@ -54,6 +58,9 @@ namespace HoldemFeatures
                     case "r": ROUND_FILTER = (Rounds)Enum.Parse(typeof(Rounds), args[++i], true);
                         featureGen.SkipMissingFeatures = true;
                         break;
+					case "num":
+					case "numeric": featureGen.ConvertFeaturesToNumeric = true;
+						break;
                     default:
                         Console.WriteLine("Unknown flag: {0}", flag);
                         return;
