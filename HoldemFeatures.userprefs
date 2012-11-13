@@ -1,9 +1,9 @@
 ﻿<Properties>
-  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x86" />
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Release|x86" />
   <MonoDevelop.Ide.Workbench ActiveDocument="HoldemFeatures/LimitFeatureGenerator.cs">
     <Files>
       <File FileName="HoldemFeatures/Program.cs" Line="63" Column="7" />
-      <File FileName="HoldemFeatures/LimitFeatureGenerator.cs" Line="89" Column="6" />
+      <File FileName="HoldemFeatures/LimitFeatureGenerator.cs" Line="118" Column="10" />
       <File FileName="HoldemFeatures/Feature.cs" Line="32" Column="37" />
       <File FileName="HoldemFeatures/FeatureType.cs" Line="12" Column="8" />
     </Files>
@@ -14,6 +14,15 @@
             <Node name="LimitFeatureGenerator.cs" selected="True" />
           </Node>
         </State>
+      </Pad>
+      <Pad Id="ClassPad">
+        <State expanded="True" selected="True" />
+      </Pad>
+      <Pad Id="MonoDevelop.Debugger.WatchPad">
+        <State />
+      </Pad>
+      <Pad Id="ConnectionManagerPad">
+        <State selected="True" />
       </Pad>
     </Pads>
   </MonoDevelop.Ide.Workbench>

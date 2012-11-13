@@ -17,12 +17,80 @@ namespace HoldemFeatures
         public bool SkipMissingFeatures { get; set; }
 		public bool ConvertFeaturesToNumeric { get; set; }
 
+
         public LimitFeatureGenerator()
         {
 
         }
 
-        public Tuple<string, string>[] GenerateFeatures(PokerHand hand, int rIdx, int aIdx)
+		public weka.core.Instances GenerateInstances(int rIdx)
+		{
+			var atts = new weka.core.FastVector();
+
+			// Get all the features of this class.
+			foreach (var method in typeof(LimitFeatureGenerator).GetMethods())
+			{
+				var attributes = method.GetCustomAttributes(typeof(Feature), true);
+				if (attributes.Length == 0)
+					continue;
+				
+				// Get the feature attribute on this method.
+				var attr = ((Feature)attributes[0]);
+				
+				// Get the name for this column in the CSV file.
+				string name = attr.Name;
+
+				switch (attr.FType) {
+				case FeatureType.Boolean:
+				{
+					var attVals = new weka.core.FastVector();
+					attVals.addElement(Boolean.FalseString);
+					attVals.addElement(Boolean.TrueString);
+					atts.addElement(new weka.core.Attribute(name, attVals));
+				}break;
+				case FeatureType.Enum: 
+				{
+					var attVals = new weka.core.FastVector();
+					var vals = Enum.GetNames(attr.EnumType);
+					for(int i = 0; i < vals.Length; i++)
+						attVals.addElement(vals[i]);
+					atts.addElement(new weka.core.Attribute(name, attVals));
+				}break;
+				case FeatureType.Nominal:
+				{
+					var attVals = new weka.core.FastVector();
+					var vals = attr.NominalValues;
+					for(int i = 0; i < vals.Length; i++)
+						attVals.addElement(vals[i]);
+					atts.addElement(new weka.core.Attribute(name, attVals));
+				}break;
+				case FeatureType.String:
+				{
+					atts.addElement(new weka.core.Attribute(name, (weka.core.FastVector)null));
+				}break;
+				case FeatureType.Discrete:
+				case FeatureType.Continuous:
+				{
+					atts.addElement(new weka.core.Attribute(name));
+				}break;
+				default: throw new Exception("Unknown attribute type: " + attr.FType.ToString());
+				}
+			}
+
+			var classVals = new weka.core.FastVector();
+			classVals.addElement("Fold");
+			classVals.addElement("Call");
+			classVals.addElement("Raise");
+			atts.addElement(new weka.core.Attribute("Action", classVals));
+
+			var data = new weka.core.Instances(((Rounds)rIdx).ToString().ToLower() + "_data", atts, 0);
+
+			data.setClassIndex(atts.size() - 1);
+
+			return data;
+		}
+
+        public Tuple<string,string>[] GenerateFeatures(PokerHand hand, int rIdx, int aIdx)
         {
             // Check that we are using limit betting.
             Debug.Assert(hand.Context.BettingType == BettingType.FixedLimit);
@@ -93,23 +161,23 @@ namespace HoldemFeatures
             }
 
 			string actionStr = hand.Rounds[rIdx].Actions[aIdx].Type.ToString();
-			if(ConvertFeaturesToNumeric)
+
+			switch (hand.Rounds[rIdx].Actions[aIdx].Type) 
 			{
-				switch (hand.Rounds[rIdx].Actions[aIdx].Type) {
-				case ActionType.Bet:
-				case ActionType.Raise: actionStr = "2";
+			case ActionType.Bet:
+			case ActionType.Raise: actionStr = ConvertFeaturesToNumeric ? "2" : "Raise";
+			break;
+			case ActionType.Call:
+			case ActionType.Check: actionStr = ConvertFeaturesToNumeric ? "1" : "Call";
+			break;
+			case ActionType.Fold: actionStr = ConvertFeaturesToNumeric ? "0" : "Fold";
+			break;
+			default:
 				break;
-				case ActionType.Call:
-				case ActionType.Check: actionStr = "1";
-				break;
-				case ActionType.Fold: actionStr = "0";
-				break;
-				default:
-					break;
-				}
 			}
-			else
-            	results.Add(new Tuple<string, string>("Action", actionStr));
+
+  			
+			results.Add(new Tuple<string, string>("Action", actionStr));
             return results.ToArray();
         }
         
