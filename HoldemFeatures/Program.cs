@@ -13,9 +13,13 @@ namespace HoldemFeatures
         static string DELIMITER = ",";
         static LimitFeatureGenerator featureGen = new LimitFeatureGenerator();
         static Rounds ROUND_FILTER = Rounds.NONE;
+		static string FILE_FORMAT = "arff";
 
         static void Main(string[] args)
         {
+//			Console.WriteLine("**** WARNING: HARD CODED PARAMETERS IN USE ****");
+//			args= @"/Users/wesley/Dropbox/Public/hands.xml /Users/wesley/poker/classifiers/datasets/preflop.arff -round preflop".Split();
+
             #region Validate parameters
             if (args.Length < 2)
             {
@@ -35,6 +39,12 @@ namespace HoldemFeatures
 				// Convert features to numeric values
 				Console.WriteLine("[num, numeric]".PadRight(30) + "Automatically converts all features to numeric values.");
 				Console.WriteLine("Default: disabled.".PadLeft(30));
+
+				// Convert features to numeric values
+				Console.WriteLine("[format] <arg1>".PadRight(30) + "Sets the file format to save to.");
+				Console.WriteLine("".PadRight(30) + "Options: arff, csv");
+				Console.WriteLine("Default: arff.".PadLeft(30));
+
 
                 return;
             }
@@ -61,6 +71,13 @@ namespace HoldemFeatures
 					case "num":
 					case "numeric": featureGen.ConvertFeaturesToNumeric = true;
 						break;
+					case "format": FILE_FORMAT = args[++i].ToLower();
+					if(FILE_FORMAT != "csv" && FILE_FORMAT != "arff")
+					{
+						Console.WriteLine("Unknown file format: {0}. Options are csv or arff", FILE_FORMAT);
+						return;
+					}
+					break;
                     default:
                         Console.WriteLine("Unknown flag: {0}", flag);
                         return;
@@ -89,42 +106,46 @@ namespace HoldemFeatures
 
             #region Iterate over every hero action and generate features
             Console.WriteLine("Generating features...");
-            var features = new List<Tuple<string,string>[]>();
-            for (int hIdx = 0; hIdx < hands.Hands.Length; hIdx++)
-            {
-                if (hIdx % 1000 == 0)
-                    Console.WriteLine("Hand: {0}", hIdx);
-                
-                var hand = hands.Hands[hIdx];
-                
-                for (int rIdx = 0; rIdx < hand.Rounds.Length; rIdx++)
-                {
-                    // Optionally filter out rounds
-                    if (ROUND_FILTER != Rounds.NONE && ROUND_FILTER != (Rounds)rIdx)
-                        continue;
-
-                    if (hand.Rounds[rIdx].Actions == null)
-                        continue;
-
-                    for (int aIdx = 0; aIdx < hand.Rounds[rIdx].Actions.Length; aIdx++)
-                        if (hand.Rounds[rIdx].Actions[aIdx].Player == hand.Hero)
-                            features.Add(featureGen.GenerateFeatures(hand, rIdx, aIdx));
-                }
-            }
+			var features = featureGen.GenerateFeatures(hands.Hands, ROUND_FILTER);
             Console.WriteLine("done.");
-            Console.WriteLine("Generated {0} features for {1} decision{2}", features.First().Count(), features.Count, features.Count == 1 ? "" : "s");
+            Console.WriteLine("Generated {0} features for {1} decision{2}", features.numAttributes(), features.numInstances(), features.numInstances() == 1 ? "" : "s");
             #endregion
 
             #region Write the results to a delimited file
             Console.Write("Writing results to file... ");
-            using (TextWriter writer = new StreamWriter(args[1]))
-            {
-                if(features.Count == 0)
-                    return;
-                writer.WriteLine(features[0].Select(t => t.Item1).Flatten(DELIMITER));
-                foreach (var row in features)
-                    writer.WriteLine(row.Select(t => t.Item2).Flatten(DELIMITER));
-            }
+
+			if(FILE_FORMAT == "csv")
+			{
+	            using (TextWriter writer = new StreamWriter(args[1]))
+	            {
+	                if(features.numInstances() == 0)
+	                    return;
+					for(int i = 0; i < features.numAttributes(); i++)
+					{
+	                	writer.Write(features.attribute(i));
+						if(i < features.numAttributes() - 1)
+							writer.Write(DELIMITER);
+					}
+					writer.WriteLine();
+					for(int i = 0; i < features.numInstances(); i++)
+					{
+						for(int j = 0; j < features.numAttributes(); j++)
+						{
+		                    	writer.Write(features.instance(i).value(j));
+							if(j < features.numAttributes() - 1)
+								writer.Write(DELIMITER);
+						}
+						writer.WriteLine();
+					}
+	            }
+			} else if (FILE_FORMAT == "arff")
+			{
+				using (TextWriter writer = new StreamWriter(args[1]))
+				{
+					writer.WriteLine(features.toString());
+				}
+			}
+
             Console.WriteLine("done.");
             #endregion
         }

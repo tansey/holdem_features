@@ -36,6 +36,9 @@ namespace HoldemFeatures
 				
 				// Get the feature attribute on this method.
 				var attr = ((Feature)attributes[0]);
+
+				if(rIdx < (int)attr.MinRound || rIdx > (int)attr.MaxRound)
+					continue;
 				
 				// Get the name for this column in the CSV file.
 				string name = attr.Name;
@@ -85,9 +88,111 @@ namespace HoldemFeatures
 
 			var data = new weka.core.Instances(((Rounds)rIdx).ToString().ToLower() + "_data", atts, 0);
 
-			data.setClassIndex(atts.size() - 1);
+			data.setClassIndex(data.numAttributes() - 1);
 
 			return data;
+		}
+
+		public weka.core.Instances GenerateFeatures(IEnumerable<PokerHand> hands, Rounds roundFilter = Rounds.NONE)
+		{
+			var data = GenerateInstances((int)roundFilter);
+
+			foreach(var hand in hands)
+			{
+				for (int rIdx = 0; rIdx < hand.Rounds.Length; rIdx++)
+				{
+					// Optionally filter out rounds
+					if (roundFilter != Rounds.NONE && roundFilter != (Rounds)rIdx)
+						continue;
+
+					if(hand.Rounds[rIdx] == null || hand.Rounds[rIdx].Actions == null)
+						continue;
+
+					for (int aIdx = 0; aIdx < hand.Rounds[rIdx].Actions.Length; aIdx++)
+						if (hand.Rounds[rIdx].Actions[aIdx].Player == hand.Hero)
+							data.add(GenerateFeatures(hand, rIdx, aIdx, data));
+				}
+			}
+
+			return data;
+		}
+
+		public weka.core.Instance GenerateFeatures(PokerHand hand, int rIdx, int aIdx, weka.core.Instances data)
+		{
+			// Check that we are using limit betting.
+			Debug.Assert(hand.Context.BettingType == BettingType.FixedLimit);
+			
+			var results = new weka.core.Instance(data.numAttributes());
+			results.setDataset(data);
+			int attIdx = 0;
+			foreach (var method in typeof(LimitFeatureGenerator).GetMethods())
+			{
+				// Get all the features of this class.
+				var attributes = method.GetCustomAttributes(typeof(Feature), true);
+				if (attributes.Length == 0)
+					continue;
+				
+				// Get the feature attribute on this method.
+				var attr = ((Feature)attributes[0]);
+				
+				// Get the name for this attribute
+				string name = attr.Name;
+				//Console.WriteLine("Hand: {0} Feature: {1}", hand.Context.ID, name);
+				
+				// Get the feature only if it's applicable to this situation.
+				object feature = null;
+				if(rIdx >= (int)attr.MinRound && rIdx <= (int)attr.MaxRound)
+					feature = method.Invoke(this, new object[] { hand, rIdx, aIdx });
+				
+				if (SkipMissingFeatures && (feature == null || feature.ToString() == "?"))
+					continue;
+
+				switch (attr.FType) {
+				case FeatureType.Continuous: 
+					results.setValue(attIdx, (double)feature);
+					break;
+				case FeatureType.Discrete: 
+					results.setValue(attIdx, (int)feature);
+					break;
+				case FeatureType.Boolean:
+				case FeatureType.Nominal:
+				case FeatureType.Enum:
+				{
+					var attribute = data.attribute(attIdx);
+					var attVal = attribute.indexOfValue(feature.ToString());
+					if(attVal < 0 || attVal > attribute.numValues())
+						throw new Exception(string.Format ("Invalid attribute value: {0} for attribute {1} (idx: {2} total values: {3}", feature.ToString(), name, attVal, attribute.numValues()));
+					results.setValue(attribute, attVal);
+				}
+					break;
+				case FeatureType.String:
+				{
+					var attribute = data.attribute(attIdx);
+					results.setValue(attribute, feature.ToString());
+				}
+					break;
+				default: throw new Exception("Unspecified feature type for feature: " + method.Name);
+				}
+
+				attIdx++;
+			}
+
+			var classAttr = data.classAttribute();
+			switch (hand.Rounds[rIdx].Actions[aIdx].Type) 
+			{
+			case ActionType.Bet:
+			case ActionType.Raise: results.setClassValue(classAttr.indexOfValue("Raise"));
+				break;
+			case ActionType.Call:
+			case ActionType.Check: results.setClassValue(classAttr.indexOfValue("Call"));
+				break;
+			case ActionType.Fold: results.setClassValue(classAttr.indexOfValue("Fold"));;
+				break;
+			default:
+				break;
+			}
+			
+			return results;
 		}
 
         public Tuple<string,string>[] GenerateFeatures(PokerHand hand, int rIdx, int aIdx)
