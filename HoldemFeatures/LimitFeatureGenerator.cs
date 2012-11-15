@@ -117,7 +117,7 @@ namespace HoldemFeatures
 			return data;
 		}
 
-		public weka.core.Instance GenerateFeatures(PokerHand hand, int rIdx, int aIdx, weka.core.Instances data)
+		public weka.core.Instance GenerateFeatures(PokerHand hand, int rIdx, int aIdx, weka.core.Instances data, bool generateClass = true)
 		{
 			// Check that we are using limit betting.
 			Debug.Assert(hand.Context.BettingType == BettingType.FixedLimit);
@@ -177,21 +177,24 @@ namespace HoldemFeatures
 				attIdx++;
 			}
 
-			var classAttr = data.classAttribute();
-			switch (hand.Rounds[rIdx].Actions[aIdx].Type) 
+			if(generateClass)
 			{
-			case ActionType.Bet:
-			case ActionType.Raise: results.setClassValue(classAttr.indexOfValue("Raise"));
-				break;
-			case ActionType.Call:
-			case ActionType.Check: results.setClassValue(classAttr.indexOfValue("Call"));
-				break;
-			case ActionType.Fold: results.setClassValue(classAttr.indexOfValue("Fold"));;
-				break;
-			default:
-				break;
+				var classAttr = data.classAttribute();
+				switch (hand.Rounds[rIdx].Actions[aIdx].Type) 
+				{
+				case ActionType.Bet:
+				case ActionType.Raise: results.setClassValue(classAttr.indexOfValue("Raise"));
+					break;
+				case ActionType.Call:
+				case ActionType.Check: results.setClassValue(classAttr.indexOfValue("Call"));
+					break;
+				case ActionType.Fold: results.setClassValue(classAttr.indexOfValue("Fold"));;
+					break;
+				default:
+					break;
+				}
 			}
-			
+
 			return results;
 		}
 
@@ -745,6 +748,8 @@ namespace HoldemFeatures
         // Gets the number of total bets put in by the highest raisor.
         private int getBetLevel(Action[] actions, int aIdx)
         {
+			if(actions == null)
+				return 0;
             int level = 0;
             for (int i = 0; i < actions.Length && i < aIdx; i++)
                 if (actions[i].Type == ActionType.Bet || actions[i].Type == ActionType.Raise)

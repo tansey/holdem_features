@@ -1,17 +1,19 @@
 ﻿<Properties>
-  <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug|x86" />
-  <MonoDevelop.Ide.Workbench ActiveDocument="HoldemFeatures/Program.cs">
+  <MonoDevelop.Ide.Workspace ActiveConfiguration="Release|x86" />
+  <MonoDevelop.Ide.Workbench ActiveDocument="TestHoldemFeatures/Test.cs">
     <Files>
-      <File FileName="HoldemFeatures/Program.cs" Line="31" Column="22" />
-      <File FileName="HoldemFeatures/LimitFeatureGenerator.cs" Line="120" Column="29" />
+      <File FileName="HoldemFeatures/Program.cs" Line="109" Column="43" />
+      <File FileName="HoldemFeatures/LimitFeatureGenerator.cs" Line="197" Column="4" />
       <File FileName="HoldemFeatures/Feature.cs" Line="32" Column="37" />
       <File FileName="HoldemFeatures/FeatureType.cs" Line="12" Column="8" />
+      <File FileName="TestHoldemFeatures/Test.cs" Line="40" Column="4" />
     </Files>
     <Pads>
       <Pad Id="ProjectPad">
         <State expanded="True">
-          <Node name="HoldemFeatures" expanded="True">
-            <Node name="Program.cs" selected="True" />
+          <Node name="HoldemFeatures" expanded="True" />
+          <Node name="TestHoldemFeatures" expanded="True">
+            <Node name="Test.cs" selected="True" />
           </Node>
         </State>
       </Pad>
@@ -23,6 +25,9 @@
       </Pad>
       <Pad Id="ConnectionManagerPad">
         <State selected="True" />
+      </Pad>
+      <Pad Id="MonoDevelop.NUnit.TestPad">
+        <State expanded="True" selected="True" />
       </Pad>
     </Pads>
   </MonoDevelop.Ide.Workbench>
