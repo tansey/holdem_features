@@ -14,11 +14,12 @@ namespace HoldemFeatures
         static LimitFeatureGenerator featureGen = new LimitFeatureGenerator();
         static Rounds ROUND_FILTER = Rounds.NONE;
 		static string FILE_FORMAT = "arff";
+		static bool REGRESSION = false;
 
         static void Main(string[] args)
         {
 //			Console.WriteLine("**** WARNING: HARD CODED PARAMETERS IN USE ****");
-//			args= @"/Users/wesley/Dropbox/Public/hands.xml /Users/wesley/poker/classifiers/datasets/preflop.arff -round preflop".Split();
+//			args= @"/Users/wesley/Dropbox/Public/hands.xml /Users/wesley/poker/classifiers/datasets/river.arff -round river -regression".Split();
 
             #region Validate parameters
             if (args.Length < 2)
@@ -45,7 +46,8 @@ namespace HoldemFeatures
 				Console.WriteLine("".PadRight(30) + "Options: arff, csv");
 				Console.WriteLine("Default: arff.".PadLeft(30));
 
-
+				Console.WriteLine("[regress, regression]".PadRight(30) + "Generates datasets for regression rather than classification.");
+				Console.WriteLine("Default: disabled (classification)".PadLeft(30));
                 return;
             }
 
@@ -78,6 +80,9 @@ namespace HoldemFeatures
 						return;
 					}
 					break;
+					case "regression":
+					case "regress": REGRESSION = true;
+					break;
                     default:
                         Console.WriteLine("Unknown flag: {0}", flag);
                         return;
@@ -106,23 +111,37 @@ namespace HoldemFeatures
 
             #region Iterate over every hero action and generate features
             Console.WriteLine("Generating features...");
-			var features = featureGen.GenerateFeatures(hands.Hands, ROUND_FILTER);
+			weka.core.Instances[] features = featureGen.GenerateFeatures(hands.Hands, ROUND_FILTER, REGRESSION);
             Console.WriteLine("done.");
-            Console.WriteLine("Generated {0} features for {1} decision{2}", features.numAttributes(), features.numInstances(), features.numInstances() == 1 ? "" : "s");
+            Console.WriteLine("Generated {0} features for {1} decision{2}", features[0].numAttributes(), features[0].numInstances(), features[0].numInstances() == 1 ? "" : "s");
             #endregion
 
             #region Write the results to a delimited file
             Console.Write("Writing results to file... ");
+			if(REGRESSION)
+			{
+				string filename = args[1].Insert(args[1].IndexOf('.'), "_{0}");
+				writeFile(features[0], string.Format(filename, "fold"));
+				writeFile(features[1], string.Format(filename, "call"));
+				writeFile(features[2], string.Format(filename, "raise"));
+			}
+			else
+				writeFile(features[0], args[1]);
+   			Console.WriteLine("done.");
+            #endregion
+        }
 
+		private static void writeFile(weka.core.Instances features, string filename)
+		{
 			if(FILE_FORMAT == "csv")
 			{
-	            using (TextWriter writer = new StreamWriter(args[1]))
-	            {
-	                if(features.numInstances() == 0)
-	                    return;
+				using (TextWriter writer = new StreamWriter(filename))
+				{
+					if(features.numInstances() == 0)
+						return;
 					for(int i = 0; i < features.numAttributes(); i++)
 					{
-	                	writer.Write(features.attribute(i));
+						writer.Write(features.attribute(i));
 						if(i < features.numAttributes() - 1)
 							writer.Write(DELIMITER);
 					}
@@ -131,23 +150,20 @@ namespace HoldemFeatures
 					{
 						for(int j = 0; j < features.numAttributes(); j++)
 						{
-		                    	writer.Write(features.instance(i).value(j));
+							writer.Write(features.instance(i).value(j));
 							if(j < features.numAttributes() - 1)
 								writer.Write(DELIMITER);
 						}
 						writer.WriteLine();
 					}
-	            }
+				}
 			} else if (FILE_FORMAT == "arff")
 			{
-				using (TextWriter writer = new StreamWriter(args[1]))
+				using (TextWriter writer = new StreamWriter(filename))
 				{
 					writer.WriteLine(features.toString());
 				}
 			}
-
-            Console.WriteLine("done.");
-            #endregion
-        }
+		}
     }
 }

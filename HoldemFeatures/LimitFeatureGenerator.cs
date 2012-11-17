@@ -9,7 +9,7 @@ using HoldemHand;
 
 namespace HoldemFeatures
 {
-    public class LimitFeatureGenerator : IFeatureGenerator
+    public class LimitFeatureGenerator
     {
 		// Map from string value of a feature to its index
 		Dictionary<string,Dictionary<string, int>> stringIndexes = new Dictionary<string, Dictionary<string, int>>();
@@ -23,10 +23,44 @@ namespace HoldemFeatures
 
         }
 
-		public weka.core.Instances GenerateInstances(int rIdx)
+		public weka.core.Instances GenerateClassifierInstances(int rIdx)
+		{
+			var atts = generateStateAttributes(rIdx);
+
+			var classVals = new weka.core.FastVector();
+			classVals.addElement("Fold");
+			classVals.addElement("Call");
+			classVals.addElement("Raise");
+			atts.addElement(new weka.core.Attribute("Action", classVals));
+
+			var data = new weka.core.Instances(((Rounds)rIdx).ToString().ToLower() + "_data", atts, 0);
+
+			data.setClassIndex(data.numAttributes() - 1);
+
+			return data;
+		}
+
+		public weka.core.Instances[] GenerateRegressionInstances(int rIdx)
+		{
+			var instances = new weka.core.Instances[3];
+			string dataName = ((Rounds)rIdx).ToString().ToLower() + "_{0}_data";
+			for(int i = 0; i < 3; i++)
+			{
+				var atts = generateStateAttributes(rIdx);
+				string className = i == 0 ? "Fold" : i == 1 ? "Call" : "Raise";
+				atts.addElement(new weka.core.Attribute(className));
+				var data = new weka.core.Instances(string.Format(dataName, className.ToLower()), atts, 0);
+
+				data.setClassIndex(data.numAttributes() - 1);
+				instances[i] = data;
+			}
+			return instances;
+		}
+
+		private weka.core.FastVector generateStateAttributes(int rIdx)
 		{
 			var atts = new weka.core.FastVector();
-
+			
 			// Get all the features of this class.
 			foreach (var method in typeof(LimitFeatureGenerator).GetMethods())
 			{
@@ -36,13 +70,13 @@ namespace HoldemFeatures
 				
 				// Get the feature attribute on this method.
 				var attr = ((Feature)attributes[0]);
-
+				
 				if(rIdx < (int)attr.MinRound || rIdx > (int)attr.MaxRound)
 					continue;
 				
 				// Get the name for this column in the CSV file.
 				string name = attr.Name;
-
+				
 				switch (attr.FType) {
 				case FeatureType.Boolean:
 				{
@@ -80,22 +114,12 @@ namespace HoldemFeatures
 				}
 			}
 
-			var classVals = new weka.core.FastVector();
-			classVals.addElement("Fold");
-			classVals.addElement("Call");
-			classVals.addElement("Raise");
-			atts.addElement(new weka.core.Attribute("Action", classVals));
-
-			var data = new weka.core.Instances(((Rounds)rIdx).ToString().ToLower() + "_data", atts, 0);
-
-			data.setClassIndex(data.numAttributes() - 1);
-
-			return data;
+			return atts;
 		}
 
-		public weka.core.Instances GenerateFeatures(IEnumerable<PokerHand> hands, Rounds roundFilter = Rounds.NONE)
+		public weka.core.Instances GenerateClassifierFeatures(IEnumerable<PokerHand> hands, Rounds roundFilter = Rounds.NONE)
 		{
-			var data = GenerateInstances((int)roundFilter);
+			var data = GenerateClassifierInstances((int)roundFilter);
 
 			foreach(var hand in hands)
 			{
@@ -114,6 +138,52 @@ namespace HoldemFeatures
 				}
 			}
 
+			return data;
+		}
+
+		public weka.core.Instances[] GenerateFeatures(IEnumerable<PokerHand> hands, Rounds roundFilter = Rounds.NONE, bool regression = false)
+		{
+			weka.core.Instances[] data = regression ? GenerateRegressionInstances((int)roundFilter)
+													: new weka.core.Instances[] { GenerateClassifierInstances((int)roundFilter) };
+
+			foreach(var hand in hands)
+			{
+				for (int rIdx = 0; rIdx < hand.Rounds.Length; rIdx++)
+				{
+					// Optionally filter out rounds
+					if (roundFilter != Rounds.NONE && roundFilter != (Rounds)rIdx)
+						continue;
+					
+					if(hand.Rounds[rIdx] == null || hand.Rounds[rIdx].Actions == null)
+						continue;
+					
+					for (int aIdx = 0; aIdx < hand.Rounds[rIdx].Actions.Length; aIdx++)
+						if (hand.Rounds[rIdx].Actions[aIdx].Player == hand.Hero)
+							for(int dIdx = 0; dIdx < data.Length; dIdx++)
+							{
+								var inst = GenerateFeatures(hand, rIdx, aIdx, data[dIdx], !regression);
+								if(regression)
+								{
+									switch (hand.Rounds[rIdx].Actions[aIdx].Type) 
+									{
+										case ActionType.Bet:
+										case ActionType.Raise: inst.setClassValue(dIdx == 2 ? 1 : 0);
+										break;
+										case ActionType.Call:
+										case ActionType.Check: inst.setClassValue(dIdx == 1 ? 1 : 0);
+										break;
+										case ActionType.Fold: inst.setClassValue(dIdx == 0 ? 1 : 0);
+										break;
+										default:
+										break;
+									}
+								}
+								data[dIdx].add(inst);
+							}
+
+				}
+			}
+			
 			return data;
 		}
 

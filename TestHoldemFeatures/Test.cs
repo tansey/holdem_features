@@ -35,7 +35,7 @@ namespace TestHoldemFeatures
 
 			var hand = buildHand(utg);
 
-			var data = _featureGen.GenerateInstances(0);
+			var data = _featureGen.GenerateClassifierInstances(0);
 
 			_featureGen.GenerateFeatures(hand, 0, 0, data, false);
 		}

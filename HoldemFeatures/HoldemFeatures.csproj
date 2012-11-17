@@ -126,7 +126,6 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Feature.cs" />
-    <Compile Include="IFeatureGenerator.cs" />
     <Compile Include="LimitFeatureGenerator.cs" />
     <Compile Include="ListExtensions.cs" />
     <Compile Include="Position.cs" />
